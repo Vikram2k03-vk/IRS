@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 import joblib
-
+import matplotlib.pyplot as plt
 from sklearn.preprocessing import MinMaxScaler
 
 # =====================================
@@ -45,8 +45,19 @@ val_df = pd.read_csv(
     "../data/validation_split.csv"
 )
 
-X_val = val_df.iloc[:, :181].values
-y_val = val_df.iloc[:, 181:].values
+X_all = val_df.iloc[:, :181].values
+y_all = val_df.iloc[:, 181:].values
+
+print(f"\nAvailable Validation Samples : {len(X_all)}")
+
+sample = int(input(f"Select Sample (0-{len(X_all)-1}): "))
+
+if sample < 0 or sample >= len(X_all):
+    print("Invalid sample.")
+    exit()
+
+X_selected = X_all[sample].reshape(1, -1)
+y_selected = y_all[sample].reshape(1, -1)
 
 # =====================================
 # LOAD SCALER
@@ -58,9 +69,9 @@ scaler = joblib.load(
     "xgboost_scaler.pkl"
 )
 
-X_val = scaler.transform(
-    X_val
-)
+X_val_original = X_selected.copy()
+
+X_selected = scaler.transform(X_selected)
 
 # =====================================
 # LOAD MODEL
@@ -68,18 +79,17 @@ X_val = scaler.transform(
 
 print("Loading Model...")
 
-model = joblib.load(
-    "best_xgboost_model.pkl"
+models = joblib.load(
+    "best_xgboost_models.pkl"
 )
-
-# =====================================
-# PREDICT
-# =====================================
 
 print("Predicting...")
 
-predictions = model.predict(
-    X_val
+predictions = np.column_stack(
+    [
+        model.predict(X_selected)
+        for model in models
+    ]
 )
 
 # =====================================
@@ -89,7 +99,7 @@ predictions = model.predict(
 actual_phases = []
 predicted_phases = []
 
-for i in range(len(y_val)):
+for i in range(1):
 
     actual_row = []
     predicted_row = []
@@ -98,8 +108,8 @@ for i in range(len(y_val)):
 
         idx = antenna * 2
 
-        actual_cos = y_val[i][idx]
-        actual_sin = y_val[i][idx + 1]
+        actual_cos = y_selected[i][idx]
+        actual_sin = y_selected[i][idx + 1]
 
         pred_cos = predictions[i][idx]
         pred_sin = predictions[i][idx + 1]
@@ -168,3 +178,41 @@ print(
 print(
     f"Estimated Accuracy  : {accuracy:.2f}%"
 )
+
+print("\nActual Phases")
+
+for i in range(4):
+    print(
+        f"Antenna {i+1}: {actual_phases[0][i]:.2f}°"
+    )
+
+print("\nPredicted Phases")
+
+for i in range(4):
+    print(
+        f"Antenna {i+1}: {predicted_phases[0][i]:.2f}°"
+    )
+
+# =====================================
+# PLOT RADIATION PATTERN
+# =====================================
+
+angles = np.arange(181)
+
+plt.figure(figsize=(12, 6))
+
+plt.plot(
+    angles,
+    X_val_original[0],
+    color="blue",
+    linewidth=2,
+    label="Validation Radiation Pattern"
+)
+
+plt.title("Validation Radiation Pattern")
+plt.xlabel("Angle (Degrees)")
+plt.ylabel("Gain")
+plt.grid(True)
+plt.legend()
+
+plt.show()
