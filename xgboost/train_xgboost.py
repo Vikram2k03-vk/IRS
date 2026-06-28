@@ -3,10 +3,13 @@ import numpy as np
 import joblib
 
 from sklearn.preprocessing import MinMaxScaler
-from sklearn.multioutput import MultiOutputRegressor
 from sklearn.metrics import mean_absolute_error
 
 from xgboost import XGBRegressor
+
+# =====================================
+# LOAD DATASET
+# =====================================
 
 print("Loading Dataset...")
 
@@ -25,7 +28,7 @@ print("X_val:", X_val.shape)
 print("y_val:", y_val.shape)
 
 # =====================================
-# NORMALIZATION
+# NORMALIZE INPUT
 # =====================================
 
 scaler = MinMaxScaler()
@@ -34,59 +37,128 @@ X_train = scaler.fit_transform(X_train)
 X_val = scaler.transform(X_val)
 
 # =====================================
-# XGBOOST MODEL
+# TRAIN 8 INDIVIDUAL MODELS
 # =====================================
 
-model = MultiOutputRegressor(
-    XGBRegressor(
-        n_estimators=500,
-        max_depth=8,
-        learning_rate=0.03,
-        subsample=0.8,
-        colsample_bytree=0.8,
+models = []
+
+print("\nTraining Individual XGBoost Models...\n")
+
+for i in range(8):
+
+    print(f"Training Model {i+1}/8")
+
+    model = XGBRegressor(
+
         objective="reg:squarederror",
+
+        n_estimators=1000,
+
+        learning_rate=0.03,
+
+        max_depth=8,
+
+        subsample=0.9,
+
+        colsample_bytree=0.9,
+
         random_state=42,
+
         n_jobs=-1
+
     )
-)
 
-print("\nTraining XGBoost...")
+    model.fit(
 
-model.fit(
-    X_train,
-    y_train
-)
+        X_train,
+
+        y_train[:, i]
+
+    )
+
+    models.append(model)
+
+print("\nAll Models Trained Successfully")
 
 # =====================================
 # VALIDATION
 # =====================================
 
-predictions = model.predict(X_val)
+predictions = np.column_stack(
+
+    [
+
+        model.predict(X_val)
+
+        for model in models
+
+    ]
+
+)
 
 mae = mean_absolute_error(
+
     y_val,
+
     predictions
+
 )
 
 accuracy = (1 - mae) * 100
 
-print("\nValidation MAE :", mae)
-print("Estimated Accuracy :", accuracy)
+print("\n==============================")
+print(" XGBOOST VALIDATION RESULTS")
+print("==============================")
+
+print(f"Validation MAE       : {mae:.6f}")
+print(f"Estimated Accuracy   : {accuracy:.2f}%")
 
 # =====================================
-# SAVE MODEL
+# PER OUTPUT MAE
+# =====================================
+
+print("\nPer Output MAE")
+
+for i in range(8):
+
+    output_mae = mean_absolute_error(
+
+        y_val[:, i],
+
+        predictions[:, i]
+
+    )
+
+    if i % 2 == 0:
+        label = f"Cos(Antenna {(i//2)+1})"
+    else:
+        label = f"Sin(Antenna {(i//2)+1})"
+
+    print(f"{label:<18}: {output_mae:.6f}")
+
+# =====================================
+# SAVE MODELS
 # =====================================
 
 joblib.dump(
-    model,
-    "best_xgboost_model.pkl"
+
+    models,
+
+    "best_xgboost_models.pkl"
+
 )
 
 joblib.dump(
+
     scaler,
+
     "xgboost_scaler.pkl"
+
 )
 
-print("\nModel Saved")
-print("best_xgboost_model.pkl")
+print("\n==============================")
+print("Models Saved Successfully")
+print("==============================")
+
+print("best_xgboost_models.pkl")
 print("xgboost_scaler.pkl")

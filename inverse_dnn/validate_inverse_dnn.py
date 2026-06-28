@@ -131,14 +131,6 @@ print(
     f"{accuracy:.2f}%"
 )
 
-print("\nInput Phases")
-
-for i, p in enumerate(phases):
-
-    print(
-        f"Antenna {i+1}: {p:.2f}°"
-    )
-
 print("\nIRS Reflection Phases")
 
 for i, p in enumerate(reflection_phases):
@@ -220,22 +212,6 @@ print(
 print("\n==============================")
 print(" IRS BEAM STEERING RESULTS")
 print("==============================")
-
-print("\nInput Phases")
-
-for i, p in enumerate(phases):
-
-    print(
-        f"Antenna {i+1}: {p:.2f}°"
-    )
-
-print("\nIRS Reflection Phases")
-
-for i, p in enumerate(reflection_phases):
-
-    print(
-        f"Antenna {i+1}: {p:.2f}°"
-    )
 
 print(
     f"\nPredicted Beam Direction : {beam_angle}°"
